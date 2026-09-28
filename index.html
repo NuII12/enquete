@@ -10,6 +10,7 @@
 <style>
 :root{--bg:#0d1015;--line:#232a34;--txt:#e9edf2;--mute:#8b96a5;--acc:#6ee7c8}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;min-height:100vh;color:var(--txt);font:15px/1.4 Sora,system-ui,sans-serif;
   padding:clamp(14px,3vw,36px);padding-top:calc(clamp(14px,3vw,36px) + env(safe-area-inset-top,0px));
   background:radial-gradient(900px 500px at 12% -10%,#1b2f3f 0,transparent 60%),radial-gradient(700px 420px at 100% 0,#2b1c33 0,transparent 55%),var(--bg)}
@@ -18,12 +19,17 @@ h1{margin:0;font-size:clamp(1.6rem,4vw,2.5rem);letter-spacing:-.02em;font-weight
 .sous{margin:4px 0 0;color:var(--mute)}
 .haut{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .pill{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;background:#ffffff0d;border:1px solid #ffffff14;backdrop-filter:blur(8px);font-size:.85rem}
-.pill i{width:8px;height:8px;border-radius:50%;background:#e0a33a;box-shadow:0 0 0 0 #e0a33a}
+.pill.fort{color:var(--acc);border-color:#6ee7c855}
+.pill i{width:8px;height:8px;border-radius:50%;background:#e0a33a}
 .pill.ok i{background:var(--acc);animation:pouls 2.4s infinite}
 #stat b{color:#ff8a7a}
 button{font:inherit;cursor:pointer;color:var(--txt);border:1px solid #ffffff14;background:#ffffff0d;border-radius:999px;width:42px;height:38px;font-size:1.05rem;transition:transform .15s,background .15s}
-button:hover{background:#ffffff1a;transform:translateY(-1px)}
-button:active{transform:scale(.94)}
+button:hover:not(:disabled){background:#ffffff1a;transform:translateY(-1px)}
+button:active:not(:disabled){transform:scale(.95)}
+button:disabled{opacity:.5;cursor:default}
+.btn{width:auto;padding:0 16px;height:40px;font-size:.9rem}
+.pri{background:var(--acc);color:#06241c;border-color:transparent;font-weight:700}
+.pri:hover:not(:disabled){background:#8bf0d6}
 button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
 .panel{border:1px solid var(--line);border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#171d25f2,#11151bf2);box-shadow:0 30px 60px -30px #000}
@@ -43,9 +49,26 @@ input{font:inherit;color:inherit;border:0;background:transparent;min-width:0}
 .jauge input:focus-visible{outline:0}
 .jauge:focus-within{outline:2px solid var(--acc)}
 .jauge b{position:relative;padding:0 12px 0 2px;color:#ffffffb0;font-weight:600}
+.lecture .nom,.lecture .jauge{cursor:default}
+.lecture .nom:focus{background:transparent;outline:0}
+.lecture .jauge:focus-within{outline:0}
 .row.chaud .jauge{box-shadow:0 0 0 1px #ff5a4a88,0 0 18px -4px #ff5a4a}
 .flash{animation:flash 1.3s ease-out}
-#toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
+dialog{border:1px solid var(--line);border-radius:22px;background:#141920;color:var(--txt);padding:26px;width:min(420px,92vw);box-shadow:0 40px 80px -20px #000}
+dialog::backdrop{background:#000b;backdrop-filter:blur(5px)}
+dialog h2{margin:0 0 14px;font-size:1.3rem}
+.onglets{display:flex;gap:6px;margin-bottom:12px}
+.onglets button{flex:1;width:auto;border-radius:12px;height:40px;font-size:.9rem}
+.onglets [aria-selected=true]{background:var(--acc);color:#06241c;border-color:transparent;font-weight:700}
+label.ch{display:block;margin:10px 0;font-size:.85rem;color:var(--mute)}
+label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12px;border-radius:12px;background:#ffffff0d;border:1px solid #ffffff18;color:var(--txt);font-size:1rem}
+.err{min-height:1.3em;margin:8px 0;color:#ff8a7a;font-size:.85rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.lien{background:none;border:0;width:auto;height:auto;padding:0;color:var(--mute);font-size:.82rem;text-decoration:underline}
+.note{color:var(--mute);font-size:.82rem;margin:8px 0}
+.lig{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+#listeAdmins{max-height:50vh;overflow:auto}
+#toast{position:fixed;z-index:9;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
   padding:10px 18px;border-radius:999px;background:#1f2731;border:1px solid #ffffff1c;transition:.3s}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 @keyframes flash{from{background:#6ee7c840}to{background:transparent}}
@@ -54,12 +77,14 @@ input{font:inherit;color:inherit;border:0;background:transparent;min-width:0}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body>
+<body class="lecture">
 <header>
-  <div><h1>Taux de suspicion</h1><p class="sous">Tableau comparatif des élèves, modifiable par tous</p></div>
+  <div><h1>Taux de suspicion</h1><p class="sous">Tableau comparatif des élèves, modifiable par les admins</p></div>
   <div class="haut">
     <div class="pill" id="stat">Plus suspect : –</div>
     <div class="pill" id="etat"><i></i><span>Connexion…</span></div>
+    <div class="pill" id="role">Lecture seule</div>
+    <button class="btn" id="compte">Connexion</button>
     <button id="mute" aria-label="Couper le son" title="Son">🔊</button>
   </div>
 </header>
@@ -67,12 +92,49 @@ input{font:inherit;color:inherit;border:0;background:transparent;min-width:0}
   <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="g"></div></section>
   <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="d"></div></section>
 </main>
-<div id="toast" role="status">Enregistré</div>
+
+<dialog id="dlgAuth">
+  <h2>Votre compte</h2>
+  <div class="onglets" role="tablist">
+    <button type="button" id="tabCo" role="tab">Connexion</button>
+    <button type="button" id="tabIn" role="tab">Inscription</button>
+  </div>
+  <form id="fAuth">
+    <label class="ch" id="lPseudo" hidden>Pseudo<input id="pseudo" maxlength="20" minlength="2" autocomplete="nickname"></label>
+    <label class="ch">E-mail<input id="email" type="email" required autocomplete="email"></label>
+    <label class="ch">Mot de passe<input id="mdp" type="password" required minlength="6" autocomplete="current-password"></label>
+    <p class="err" id="erreur" role="alert"></p>
+    <div class="actions">
+      <button class="btn pri" id="goAuth">Se connecter</button>
+      <button class="btn" type="button" data-close>Annuler</button>
+    </div>
+    <p class="note"><button class="lien" type="button" id="oubli">Mot de passe oublié ?</button></p>
+  </form>
+</dialog>
+
+<dialog id="dlgCompte">
+  <h2 id="cNom">Compte</h2>
+  <p class="note" id="cRole"></p>
+  <label class="ch">Votre identifiant (UID)<input id="uid" readonly></label>
+  <p class="note" id="hintUid" hidden>Owner : copiez cet identifiant dans la constante <b>OWNER_UID</b> du code et dans les règles Firebase.</p>
+  <div class="actions">
+    <button class="btn pri" id="bAdmins" hidden>Gérer les admins</button>
+    <button class="btn" id="bDeco">Se déconnecter</button>
+    <button class="btn" data-close>Fermer</button>
+  </div>
+</dialog>
+
+<dialog id="dlgAdmins">
+  <h2>Gérer les admins</h2>
+  <div id="listeAdmins"></div>
+  <div class="actions"><button class="btn" data-close>Fermer</button></div>
+</dialog>
+<div id="toast" role="status"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-/* COLLEZ ICI la configuration de votre projet Firebase */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC_bHVAesDfFhh9QCXGtOxHDZgdwSqxMtI",
   authDomain: "enquete-83090.firebaseapp.com",
@@ -80,15 +142,16 @@ const FIREBASE_CONFIG = {
   projectId: "enquete-83090",
   appId: "1:160141092184:web:257ac4ce56d487afc0b12d"
 };
+/* Identifiant (UID) du owner : créez d'abord votre compte, copiez l'UID affiché dans « Compte », collez-le ici ET dans les règles Firebase */
+const OWNER_UID = "COLLER_UID_ICI";
 
 const NOMS = ["Clara","Juliette","Esma","Henry","Isaac","Joshua","Mylan","Leo","Martin.H","Martin.F","Oscar","Chems",
   "Simon","Thomas","Olivia","Julia","Charlie","Elyne","Lucie","Bruno","Leandro","Julie","Wissal"];
 const SEUIL = 80;
-const enLigne = !FIREBASE_CONFIG.databaseURL.includes("COLLER");
 const $ = id => document.getElementById(id);
 const champs = {}, minuteurs = {};
 
-/* ---------- Effets sonores (synthétisés, aucun fichier) ---------- */
+/* ---------- Effets sonores ---------- */
 let ctx, muet = localStorage.getItem("sfx-muet") === "1";
 function son(freq, dur = .08, type = "sine", vol = .05, glisse = 1, delai = 0) {
   if (muet) return;
@@ -111,25 +174,26 @@ const sfx = {
   taux:   v => son(260 + v * 6, .09, "sine", .05, 1.15),
   alerte: () => { son(330, .28, "sawtooth", .035, .45); son(250, .3, "sawtooth", .03, .5, .12); },
   ok:     () => { son(880, .12, "sine", .04); son(1320, .2, "sine", .035, 1, .09); },
+  refus:  () => son(180, .2, "square", .03, .7),
   recu:   () => son(520, .12, "sine", .03, 1.5),
   on:     () => son(740, .08, "triangle", .04)
 };
-const btn = $("mute");
-function majBouton() { btn.textContent = muet ? "🔇" : "🔊"; btn.setAttribute("aria-label", muet ? "Activer le son" : "Couper le son"); }
-btn.onclick = () => { muet = !muet; localStorage.setItem("sfx-muet", muet ? "1" : "0"); majBouton(); sfx.on(); };
+const bMute = $("mute");
+function majBouton() { bMute.textContent = muet ? "🔇" : "🔊"; bMute.setAttribute("aria-label", muet ? "Activer le son" : "Couper le son"); }
+bMute.onclick = () => { muet = !muet; localStorage.setItem("sfx-muet", muet ? "1" : "0"); majBouton(); sfx.on(); };
 majBouton();
 
-/* ---------- Interface ---------- */
+/* ---------- Tableau ---------- */
 let toastT;
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1400); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1800); }
 
 function construire(el, debut, fin) {
   for (let i = debut; i < fin; i++) {
     const r = document.createElement("div");
     r.className = "row";
     r.innerHTML = `<span class="n">${i + 1}</span>
-      <input class="nom" data-i="${i}" data-c="nom" maxlength="30" aria-label="Nom de l'élève ${i + 1}">
-      <label class="jauge"><input data-i="${i}" data-c="taux" type="number" min="0" max="100" step="1" placeholder="—" inputmode="numeric" aria-label="Taux de suspicion de l'élève ${i + 1}"><b>%</b></label>`;
+      <input class="nom" data-i="${i}" data-c="nom" maxlength="30" readonly aria-label="Nom de l'élève ${i + 1}">
+      <label class="jauge"><input data-i="${i}" data-c="taux" type="number" min="0" max="100" step="1" placeholder="—" inputmode="numeric" readonly aria-label="Taux de suspicion de l'élève ${i + 1}"><b>%</b></label>`;
     el.appendChild(r);
   }
 }
@@ -143,26 +207,32 @@ function colorer(inp) {
   j.style.setProperty("--h", 140 - 1.4 * v);
   r.classList.toggle("chaud", inp.value !== "" && v >= SEUIL);
 }
-
 function valeur(inp) {
   if (inp.dataset.c === "nom") return inp.value.trim();
   if (inp.value === "") return null;
   return Math.max(0, Math.min(100, Math.round(Number(inp.value))));
 }
-
 function majStat() {
   let max = -1, qui = "";
   for (let i = 0; i < NOMS.length; i++) {
     const t = champs[i].taux.value;
     if (t !== "" && Number(t) > max) { max = Number(t); qui = champs[i].nom.value; }
   }
-  $("stat").innerHTML = max < 0 ? "Plus suspect : –" : `Plus suspect : <b>${qui || "?"}</b> ${max} %`;
+  const s = $("stat");
+  s.textContent = "Plus suspect : ";
+  if (max < 0) { s.append("–"); return; }
+  const b = document.createElement("b"); b.textContent = qui || "?";
+  s.append(b, " " + max + " %");
 }
 
 document.querySelectorAll("input[data-i]").forEach(inp => {
   (champs[inp.dataset.i] ||= {})[inp.dataset.c] = inp;
-  inp.addEventListener("focus", sfx.focus);
+  inp.addEventListener("focus", () => {
+    if (inp.readOnly) { sfx.refus(); toast(user ? "Modification réservée aux admins" : "Connectez-vous avec un compte admin pour modifier"); }
+    else sfx.focus();
+  });
   inp.addEventListener("input", () => {
+    if (inp.readOnly) return;
     if (inp.dataset.c === "taux") {
       if (inp.value !== "" && Number(inp.value) > 100) inp.value = 100;
       const v = Number(inp.value || 0), avant = Number(inp.dataset.prev || 0);
@@ -176,7 +246,7 @@ document.querySelectorAll("input[data-i]").forEach(inp => {
   });
 });
 
-let premier = true, dernierSon = 0;
+let premier = true, dernierSon = 0, dernier = null;
 function afficher(data) {
   let change = false;
   NOMS.forEach((nomDefaut, i) => {
@@ -195,37 +265,139 @@ function afficher(data) {
   majStat();
 }
 
-function confirmer() { sfx.ok(); toast("Enregistré ✓"); }
-function etat(ok, texte) { $("etat").classList.toggle("ok", ok); $("etat").lastElementChild.textContent = texte; }
+/* ---------- Firebase : données ---------- */
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database(), auth = firebase.auth();
+let user = null, admin = false, owner = false;
+function majEtat(ok, texte) { $("etat").classList.toggle("ok", ok); $("etat").lastElementChild.textContent = texte; }
+const peutEditer = () => owner || admin;
 
-/* ---------- Sauvegarde et synchronisation ---------- */
-let sauver;
-if (enLigne) {
-  firebase.initializeApp(FIREBASE_CONFIG);
-  const db = firebase.database(), ref = db.ref("eleves");
-  sauver = inp => ref.child(inp.dataset.i + "/" + inp.dataset.c).set(valeur(inp))
-    .then(confirmer).catch(err => etat(false, "Erreur : " + err.message));
-  let init = true;
-  ref.on("value", snap => {
-    const data = snap.val();
-    if (init && !data) ref.set(NOMS.map(nom => ({ nom, taux: null })));
-    init = false;
-    afficher(data);
-  }, err => etat(false, "Lecture impossible : " + err.message));
-  db.ref(".info/connected").on("value", s => etat(!!s.val(), s.val() ? "Synchronisé en direct" : "Reconnexion…"));
-} else {
-  const CLE = "taux-suspicion";
-  const lire = () => { try { return JSON.parse(localStorage.getItem(CLE)); } catch { return null; } };
-  sauver = inp => {
-    const data = lire() || NOMS.map(nom => ({ nom, taux: null }));
-    data[inp.dataset.i][inp.dataset.c] = valeur(inp);
-    localStorage.setItem(CLE, JSON.stringify(data));
-    confirmer();
-  };
-  afficher(lire());
-  addEventListener("storage", () => afficher(lire()));
-  etat(false, "Mode local (Firebase non configuré)");
+function sauver(inp) {
+  if (!peutEditer()) return;
+  db.ref("eleves/" + inp.dataset.i + "/" + inp.dataset.c).set(valeur(inp))
+    .then(() => { sfx.ok(); toast("Enregistré ✓"); })
+    .catch(() => { sfx.refus(); toast("Modification refusée"); inp.blur(); afficher(dernier); });
 }
+db.ref("eleves").on("value", snap => { dernier = snap.val(); afficher(dernier); },
+  err => majEtat(false, "Lecture impossible : " + err.message));
+db.ref(".info/connected").on("value", s => majEtat(!!s.val(), s.val() ? "Synchronisé en direct" : "Reconnexion…"));
+
+/* ---------- Comptes et rôles ---------- */
+const ERR = {
+  "auth/email-already-in-use": "Cet e-mail a déjà un compte.",
+  "auth/invalid-email": "Adresse e-mail invalide.",
+  "auth/weak-password": "Mot de passe trop court (6 caractères minimum).",
+  "auth/invalid-credential": "E-mail ou mot de passe incorrect.",
+  "auth/user-not-found": "Aucun compte avec cet e-mail.",
+  "auth/wrong-password": "E-mail ou mot de passe incorrect.",
+  "auth/too-many-requests": "Trop de tentatives, réessayez dans quelques minutes.",
+  "auth/operation-not-allowed": "La connexion par e-mail n'est pas activée dans Firebase.",
+  "auth/unauthorized-domain": "Ce domaine n'est pas autorisé dans Firebase (Authentication > Paramètres).",
+  "PERMISSION_DENIED": "Inscription refusée par les règles de la base."
+};
+function majDroits() {
+  const peut = peutEditer();
+  document.querySelectorAll("input[data-i]").forEach(i => i.readOnly = !peut);
+  document.body.classList.toggle("lecture", !peut);
+  const r = $("role");
+  r.textContent = owner ? "Owner" : admin ? "Admin" : user ? "Lecteur" : "Lecture seule";
+  r.classList.toggle("fort", peut);
+  $("compte").textContent = user ? (user.displayName || "Compte") : "Connexion";
+  $("cNom").textContent = user ? (user.displayName || "Compte") : "Compte";
+  $("cRole").textContent = owner ? "Rôle : owner. Vous pouvez tout modifier et nommer des admins."
+    : admin ? "Rôle : admin. Vous pouvez modifier les noms et les taux."
+    : "Rôle : lecteur. Vous pouvez consulter le tableau.";
+  $("uid").value = user ? user.uid : "";
+  $("hintUid").hidden = OWNER_UID !== "COLLER_UID_ICI";
+  $("bAdmins").hidden = !owner;
+}
+
+let offAdmin = null, usersData = {}, adminsData = {};
+auth.onAuthStateChanged(u => {
+  user = u; owner = !!u && u.uid === OWNER_UID; admin = false;
+  if (offAdmin) { offAdmin(); offAdmin = null; }
+  db.ref("users").off(); db.ref("admins").off();
+  if (u) {
+    const r = db.ref("admins/" + u.uid);
+    const f = r.on("value", s => { admin = s.val() === true; majDroits(); }, () => {});
+    offAdmin = () => r.off("value", f);
+  }
+  if (owner) {
+    db.ref("users").on("value", s => { usersData = s.val() || {}; rendreAdmins(); }, () => {});
+    db.ref("admins").on("value", s => { adminsData = s.val() || {}; rendreAdmins(); }, () => {});
+  }
+  majDroits();
+});
+
+function rendreAdmins() {
+  const l = $("listeAdmins"); l.replaceChildren();
+  const ids = Object.keys(usersData).sort((a, b) => (usersData[a].pseudo || "").localeCompare(usersData[b].pseudo || ""));
+  if (!ids.length) { l.textContent = "Aucun compte pour l'instant."; return; }
+  ids.forEach(uid => {
+    const est = adminsData[uid] === true, ligne = document.createElement("div");
+    ligne.className = "lig";
+    const nom = document.createElement("span"); nom.textContent = usersData[uid].pseudo || "Sans nom";
+    const b = document.createElement("button"); b.className = "btn";
+    if (uid === OWNER_UID) { b.textContent = "Owner"; b.disabled = true; }
+    else {
+      b.textContent = est ? "Retirer admin" : "Nommer admin";
+      b.onclick = () => db.ref("admins/" + uid).set(est ? null : true)
+        .then(() => { sfx.ok(); toast(est ? "Admin retiré" : "Nouvel admin ✓"); })
+        .catch(() => { sfx.refus(); toast("Action refusée"); });
+    }
+    ligne.append(nom, b); l.append(ligne);
+  });
+}
+
+/* ---------- Fenêtres connexion / compte ---------- */
+let mode = "connexion";
+function setMode(m) {
+  mode = m;
+  $("tabCo").setAttribute("aria-selected", m === "connexion");
+  $("tabIn").setAttribute("aria-selected", m === "inscription");
+  $("lPseudo").hidden = m !== "inscription";
+  $("pseudo").required = m === "inscription";
+  $("mdp").autocomplete = m === "inscription" ? "new-password" : "current-password";
+  $("goAuth").textContent = m === "inscription" ? "Créer mon compte" : "Se connecter";
+  $("erreur").textContent = "";
+}
+$("tabCo").onclick = () => setMode("connexion");
+$("tabIn").onclick = () => setMode("inscription");
+$("compte").onclick = () => { sfx.on(); if (user) $("dlgCompte").showModal(); else { setMode("connexion"); $("dlgAuth").showModal(); } };
+$("bAdmins").onclick = () => { $("dlgCompte").close(); $("dlgAdmins").showModal(); };
+$("bDeco").onclick = () => { auth.signOut(); $("dlgCompte").close(); toast("Déconnecté"); };
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+
+$("fAuth").onsubmit = async e => {
+  e.preventDefault();
+  const email = $("email").value.trim(), mdp = $("mdp").value, pseudo = $("pseudo").value.trim();
+  $("erreur").textContent = "";
+  try {
+    if (mode === "inscription") {
+      const c = await auth.createUserWithEmailAndPassword(email, mdp);
+      await c.user.updateProfile({ displayName: pseudo });
+      await db.ref("users/" + c.user.uid).set({ pseudo });
+    } else {
+      const c = await auth.signInWithEmailAndPassword(email, mdp);
+      const p = db.ref("users/" + c.user.uid + "/pseudo");
+      if (!(await p.once("value")).exists()) p.set(c.user.displayName || email.split("@")[0]).catch(() => {});
+    }
+    majDroits();
+    $("dlgAuth").close(); $("fAuth").reset(); sfx.ok();
+    toast(mode === "inscription" ? "Compte créé ✓" : "Connecté ✓");
+  } catch (err) {
+    sfx.refus();
+    $("erreur").textContent = ERR[err.code] || ERR[err.message] || err.message;
+  }
+};
+$("oubli").onclick = () => {
+  const email = $("email").value.trim();
+  if (!email) { $("erreur").textContent = "Saisissez d'abord votre e-mail."; return; }
+  auth.sendPasswordResetEmail(email)
+    .then(() => { $("erreur").textContent = ""; toast("E-mail de réinitialisation envoyé"); })
+    .catch(err => $("erreur").textContent = ERR[err.code] || err.message);
+};
 </script>
 </body>
 </html>
