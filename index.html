@@ -71,6 +71,9 @@ label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12p
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .lien{background:none;border:0;width:auto;height:auto;padding:0;color:var(--mute);font-size:.82rem;text-decoration:underline}
 .note{color:var(--mute);font-size:.82rem;margin:8px 0}
+.ou{margin:14px 0 10px;text-align:center;color:var(--mute);font-size:.82rem}
+.google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border-color:transparent;font-weight:600}
+.google:hover:not(:disabled){background:#f1f3f4}
 .lig{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 #listeAdmins{max-height:50vh;overflow:auto}
 #dlgAdmins{width:min(640px,94vw)}
@@ -103,6 +106,11 @@ label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12p
     <label class="rester"><input type="checkbox" id="rester" checked>Rester connecté sur cet appareil</label>
     <p class="err" id="erreur" role="alert"></p>
     <div class="actions"><button class="btn pri" id="goAuth">Se connecter</button></div>
+    <p class="ou">ou</p>
+    <button type="button" class="btn google" id="goGoogle">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Continuer avec Google
+    </button>
     <p class="note"><button class="lien" type="button" id="oubli">Mot de passe oublié ?</button></p>
   </form>
 </section>
@@ -152,7 +160,7 @@ const FIREBASE_CONFIG = {
   projectId: "enquete-83090",
   appId: "1:160141092184:web:257ac4ce56d487afc0b12d"
 };
-/* E-mail du owner : il crée son compte avec cette adresse (et le mot de passe de son choix, jamais écrit dans le code).
+/* E-mail du owner : il crée son compte avec cette adresse (ou se connecte avec Google).
    Le rôle owner n'est actif qu'une fois l'e-mail vérifié. Mettre la même adresse dans les règles Firebase. */
 const OWNER_EMAIL = "yanis.mag4801@gmail.com";
 const emailOwner = u => (u.email || "").toLowerCase() === OWNER_EMAIL;
@@ -311,8 +319,10 @@ const ERR = {
   "auth/user-not-found": "Aucun compte avec cet e-mail.",
   "auth/wrong-password": "E-mail ou mot de passe incorrect.",
   "auth/too-many-requests": "Trop de tentatives, réessayez dans quelques minutes.",
-  "auth/operation-not-allowed": "La connexion par e-mail n'est pas activée dans Firebase.",
+  "auth/operation-not-allowed": "Ce mode de connexion n'est pas activé dans Firebase.",
   "auth/unauthorized-domain": "Ce domaine n'est pas autorisé dans Firebase (Authentication > Paramètres).",
+  "auth/popup-blocked": "La fenêtre Google a été bloquée par le navigateur.",
+  "auth/account-exists-with-different-credential": "Cet e-mail a déjà un compte avec un mot de passe : connectez-vous avec.",
   "PERMISSION_DENIED": "Inscription refusée par les règles de la base."
 };
 function majDroits() {
@@ -346,7 +356,7 @@ auth.onAuthStateChanged(u => {
     db.ref("eleves").on("value", snap => { dernier = snap.val(); afficher(dernier); },
       err => majEtat(false, "Lecture impossible : " + err.message));
     const maj = { email: u.email, derniere: firebase.database.ServerValue.TIMESTAMP };
-    if (u.displayName) maj.pseudo = u.displayName;
+    if (u.displayName) maj.pseudo = u.displayName.slice(0, 20);
     db.ref("users/" + u.uid).update(maj).catch(() => {});
     presence();
     const r = db.ref("admins/" + u.uid);
@@ -363,13 +373,14 @@ auth.onAuthStateChanged(u => {
 function rendreAdmins() {
   const l = $("listeAdmins"); l.replaceChildren();
   const ids = Object.keys(usersData).sort((a, b) => (usersData[a].pseudo || "").localeCompare(usersData[b].pseudo || ""));
+  $("nbComptes").textContent = ids.length + " compte(s)";
   if (!ids.length) { l.textContent = "Aucun compte pour l'instant."; return; }
   ids.forEach(uid => {
     const est = adminsData[uid] === true, ligne = document.createElement("div");
     ligne.className = "lig";
     const nom = document.createElement("span"); nom.textContent = usersData[uid].pseudo || "Sans nom";
     const b = document.createElement("button"); b.className = "btn";
-    if (uid === OWNER_UID) { b.textContent = "Owner"; b.disabled = true; }
+    if ((usersData[uid].email || "").toLowerCase() === OWNER_EMAIL) { b.textContent = "Owner"; b.disabled = true; }
     else {
       b.textContent = est ? "Retirer admin" : "Nommer admin";
       b.onclick = () => db.ref("admins/" + uid).set(est ? null : true)
@@ -396,7 +407,7 @@ setMode("connexion");
 $("tabCo").onclick = () => setMode("connexion");
 $("tabIn").onclick = () => setMode("inscription");
 $("compte").onclick = () => { sfx.on(); $("dlgCompte").showModal(); };
-$("bAdmins").onclick = () => { $("dlgCompte").close(); $("dlgAdmins").showModal(); };
+$("bPanel").onclick = () => { sfx.on(); $("dlgAdmins").showModal(); };
 $("bDeco").onclick = () => { $("dlgCompte").close(); auth.signOut(); toast("Déconnecté"); };
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
 document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
@@ -415,7 +426,7 @@ $("fAuth").onsubmit = async e => {
     } else {
       const c = await auth.signInWithEmailAndPassword(email, mdp);
       const p = db.ref("users/" + c.user.uid + "/pseudo");
-      if (!(await p.once("value")).exists()) p.set(c.user.displayName || email.split("@")[0]).catch(() => {});
+      if (!(await p.once("value")).exists()) p.set((c.user.displayName || email.split("@")[0]).slice(0, 20)).catch(() => {});
     }
     majDroits();
     $("fAuth").reset(); sfx.ok();
@@ -425,6 +436,32 @@ $("fAuth").onsubmit = async e => {
     $("erreur").textContent = ERR[err.code] || ERR[err.message] || err.message;
   }
 };
+
+/* Connexion / création de compte avec Google (le compte est créé à la première utilisation) */
+$("goGoogle").onclick = async () => {
+  $("erreur").textContent = "";
+  const prov = new firebase.auth.GoogleAuthProvider();
+  prov.setCustomParameters({ prompt: "select_account" });
+  try {
+    await auth.setPersistence($("rester").checked ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
+    let c;
+    try { c = await auth.signInWithPopup(prov); }
+    catch (err) {
+      if (err.code === "auth/popup-blocked") { await auth.signInWithRedirect(prov); return; }
+      throw err;
+    }
+    const p = db.ref("users/" + c.user.uid + "/pseudo");
+    if (!(await p.once("value")).exists())
+      await p.set((c.user.displayName || c.user.email.split("@")[0]).slice(0, 20)).catch(() => {});
+    majDroits(); sfx.ok();
+    toast(c.additionalUserInfo && c.additionalUserInfo.isNewUser ? "Compte créé ✓" : "Connecté ✓");
+  } catch (err) {
+    if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") return;
+    sfx.refus();
+    $("erreur").textContent = ERR[err.code] || err.message;
+  }
+};
+
 $("oubli").onclick = () => {
   const email = $("email").value.trim();
   if (!email) { $("erreur").textContent = "Saisissez d'abord votre e-mail."; return; }
