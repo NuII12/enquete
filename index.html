@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau comparatif – Taux de suspicion</title>
+<style>
+:root{--ink:#272d36;--paper:#f3f3f2;--band:#dfe3e7;--cell:#f9f9f8;--red:180,50,50}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--paper);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+h1{margin:0 0 14px;padding:18px 12px;background:var(--ink);color:#fff;text-align:center;font-size:clamp(1.3rem,3.4vw,2.2rem);font-weight:700}
+.wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;max-width:1300px;margin:0 auto}
+table{width:100%;border-collapse:collapse;border:2px solid var(--ink);background:var(--cell)}
+th{background:var(--ink);color:#fff;padding:12px 8px;font-size:1.05rem}
+td{border:1px solid #b9bfc6;padding:0;height:46px}
+tr:nth-child(even) td{background:var(--band)}
+td.n{width:58px;text-align:center;font-weight:700;background:var(--band)!important}
+td.t{width:34%}
+input{width:100%;height:100%;border:0;background:transparent;font:inherit;color:inherit;padding:0 12px}
+input:focus{outline:3px solid #3b82f6;outline-offset:-3px;background:#fff}
+.taux{display:flex;align-items:center;height:100%;justify-content:center}
+.taux input{text-align:right;width:5.2em;padding-right:2px;-moz-appearance:textfield}
+.taux input::-webkit-outer-spin-button,.taux input::-webkit-inner-spin-button{-webkit-appearance:none}
+.taux span{padding-right:14px;width:1.6em;opacity:.7}
+#etat{max-width:1300px;margin:12px auto 0;font:.9rem system-ui,sans-serif;color:#555;text-align:center}
+#etat b{color:var(--ink)}
+@media(max-width:820px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Tableau comparatif – Taux de suspicion</h1>
+<div class="wrap"><table id="g"></table><table id="d"></table></div>
+<p id="etat">Connexion…</p>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* 1) COLLEZ ICI la configuration de votre projet Firebase (voir les étapes du guide) */
+const FIREBASE_CONFIG = {
+  apiKey: "COLLER_ICI",
+  authDomain: "",
+  databaseURL: "COLLER_ICI",
+  projectId: "",
+  appId: ""
+};
+
+const NOMS = ["Clara","Juliette","Esma","Henry","Isaac","Joshua","Mylan","Leo","Martin.H","Martin.F","Oscar","Chems",
+  "Simon","Thomas","Olivia","Julia","Charlie","Elyne","Lucie","Bruno","Leandro","Julie","Wissal"];
+
+const enLigne = !FIREBASE_CONFIG.databaseURL.includes("COLLER");
+const etat = document.getElementById("etat");
+const champs = {};            // "0" -> {nom: input, taux: input}
+const minuteurs = {};
+
+/* ---------- Construction du tableau ---------- */
+function construire(table, debut, fin) {
+  let h = "<tr><th>N°</th><th>Élève</th><th>Taux de suspicion</th></tr>";
+  for (let i = debut; i < fin; i++) {
+    h += `<tr><td class="n">${i + 1}</td>
+      <td><input data-i="${i}" data-c="nom" maxlength="30" aria-label="Nom de l'élève ${i + 1}"></td>
+      <td class="t"><div class="taux"><input data-i="${i}" data-c="taux" type="number" min="0" max="100" step="1" placeholder="—" aria-label="Taux de suspicion de l'élève ${i + 1}"><span>%</span></div></td></tr>`;
+  }
+  table.innerHTML = h;
+}
+construire(document.getElementById("g"), 0, 12);
+construire(document.getElementById("d"), 12, NOMS.length);
+
+document.querySelectorAll("input[data-i]").forEach(inp => {
+  (champs[inp.dataset.i] ||= {})[inp.dataset.c] = inp;
+  inp.addEventListener("input", () => {
+    if (inp.dataset.c === "taux") { colorer(inp); }
+    clearTimeout(minuteurs[inp.dataset.i + inp.dataset.c]);
+    minuteurs[inp.dataset.i + inp.dataset.c] = setTimeout(() => sauver(inp), 300);
+  });
+});
+
+function colorer(inp) {
+  const cellule = inp.closest("td");
+  const v = Math.max(0, Math.min(100, Number(inp.value)));
+  cellule.style.background = inp.value === "" ? "" :
+    `linear-gradient(to right, rgba(var(--red),.22) ${v}%, transparent ${v}%)`;
+}
+
+function valeur(inp) {
+  if (inp.dataset.c === "nom") return inp.value.trim();
+  if (inp.value === "") return null;
+  return Math.max(0, Math.min(100, Math.round(Number(inp.value))));
+}
+
+/* ---------- Affichage d'un état reçu ---------- */
+function afficher(data) {
+  NOMS.forEach((nomDefaut, i) => {
+    const e = (data && data[i]) || {};
+    const { nom, taux } = champs[i];
+    if (document.activeElement !== nom) nom.value = e.nom ?? nomDefaut;
+    if (document.activeElement !== taux) { taux.value = e.taux ?? ""; colorer(taux); }
+  });
+}
+
+/* ---------- Sauvegarde / synchronisation ---------- */
+let sauver, ref;
+
+if (enLigne) {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.database();
+  ref = db.ref("eleves");
+  sauver = inp => ref.child(inp.dataset.i + "/" + inp.dataset.c).set(valeur(inp))
+    .catch(err => etat.textContent = "Erreur de sauvegarde : " + err.message);
+
+  let premiere = true;
+  ref.on("value", snap => {
+    const data = snap.val();
+    if (premiere && !data) {                       // base vide : on l'initialise avec les noms
+      ref.set(NOMS.map(nom => ({ nom, taux: null })));
+    }
+    premiere = false;
+    afficher(data);
+  }, err => etat.textContent = "Lecture impossible : " + err.message);
+
+  db.ref(".info/connected").on("value", s => {
+    etat.innerHTML = s.val()
+      ? "<b>Synchronisé</b> – les modifications sont enregistrées et visibles par tous en direct."
+      : "<b>Hors ligne</b> – reconnexion en cours…";
+  });
+} else {
+  // Mode local (test) : sauvegarde dans ce navigateur uniquement
+  const CLE = "taux-suspicion";
+  const lire = () => { try { return JSON.parse(localStorage.getItem(CLE)); } catch { return null; } };
+  sauver = inp => {
+    const data = lire() || NOMS.map(nom => ({ nom, taux: null }));
+    data[inp.dataset.i][inp.dataset.c] = valeur(inp);
+    localStorage.setItem(CLE, JSON.stringify(data));
+  };
+  afficher(lire());
+  addEventListener("storage", () => afficher(lire()));
+  etat.innerHTML = "<b>Mode local</b> – Firebase n'est pas encore configuré : les données restent sur cet appareil.";
+}
+</script>
+</body>
+</html>
