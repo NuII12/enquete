@@ -57,17 +57,26 @@ input{font:inherit;color:inherit;border:0;background:transparent;min-width:0}
 dialog{border:1px solid var(--line);border-radius:22px;background:#141920;color:var(--txt);padding:26px;width:min(420px,92vw);box-shadow:0 40px 80px -20px #000}
 dialog::backdrop{background:#000b;backdrop-filter:blur(5px)}
 dialog h2{margin:0 0 14px;font-size:1.3rem}
+#porte{width:min(420px,100%);margin:6vh auto 0;padding:28px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,#171d25f2,#11151bf2);box-shadow:0 30px 60px -30px #000}
+#porte h1{font-size:1.7rem}
+#porte .sous{margin:6px 0 18px}
 .onglets{display:flex;gap:6px;margin-bottom:12px}
 .onglets button{flex:1;width:auto;border-radius:12px;height:40px;font-size:.9rem}
 .onglets [aria-selected=true]{background:var(--acc);color:#06241c;border-color:transparent;font-weight:700}
 label.ch{display:block;margin:10px 0;font-size:.85rem;color:var(--mute)}
 label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12px;border-radius:12px;background:#ffffff0d;border:1px solid #ffffff18;color:var(--txt);font-size:1rem}
+.rester{display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:.85rem;color:var(--mute);cursor:pointer}
+.rester input{width:auto;height:auto;margin:0;accent-color:var(--acc)}
 .err{min-height:1.3em;margin:8px 0;color:#ff8a7a;font-size:.85rem}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .lien{background:none;border:0;width:auto;height:auto;padding:0;color:var(--mute);font-size:.82rem;text-decoration:underline}
 .note{color:var(--mute);font-size:.82rem;margin:8px 0}
 .lig{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 #listeAdmins{max-height:50vh;overflow:auto}
+#dlgAdmins{width:min(640px,94vw)}
+.lig small{display:block;color:var(--mute);font-size:.78rem;overflow-wrap:anywhere}
+.pt{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:#56606e}
+.pt.on{background:var(--acc)}
 #toast{position:fixed;z-index:9;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
   padding:10px 18px;border-radius:999px;background:#1f2731;border:1px solid #ffffff1c;transition:.3s}
 #toast.on{opacity:1;transform:translate(-50%,0)}
@@ -78,23 +87,11 @@ label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12p
 </style>
 </head>
 <body class="lecture">
-<header>
-  <div><h1>Taux de suspicion</h1><p class="sous">Tableau comparatif des élèves, modifiable par les admins</p></div>
-  <div class="haut">
-    <div class="pill" id="stat">Plus suspect : –</div>
-    <div class="pill" id="etat"><i></i><span>Connexion…</span></div>
-    <div class="pill" id="role">Lecture seule</div>
-    <button class="btn" id="compte">Connexion</button>
-    <button id="mute" aria-label="Couper le son" title="Son">🔊</button>
-  </div>
-</header>
-<main class="wrap">
-  <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="g"></div></section>
-  <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="d"></div></section>
-</main>
 
-<dialog id="dlgAuth">
-  <h2>Votre compte</h2>
+<!-- Page de connexion : affichée tant que l'appareil n'a pas de session -->
+<section id="porte" hidden>
+  <h1>Taux de suspicion</h1>
+  <p class="sous">Connectez-vous pour voir le tableau.</p>
   <div class="onglets" role="tablist">
     <button type="button" id="tabCo" role="tab">Connexion</button>
     <button type="button" id="tabIn" role="tab">Inscription</button>
@@ -103,29 +100,42 @@ label.ch input{display:block;width:100%;margin-top:6px;height:42px;padding:0 12p
     <label class="ch" id="lPseudo" hidden>Pseudo<input id="pseudo" maxlength="20" minlength="2" autocomplete="nickname"></label>
     <label class="ch">E-mail<input id="email" type="email" required autocomplete="email"></label>
     <label class="ch">Mot de passe<input id="mdp" type="password" required minlength="6" autocomplete="current-password"></label>
+    <label class="rester"><input type="checkbox" id="rester" checked>Rester connecté sur cet appareil</label>
     <p class="err" id="erreur" role="alert"></p>
-    <div class="actions">
-      <button class="btn pri" id="goAuth">Se connecter</button>
-      <button class="btn" type="button" data-close>Annuler</button>
-    </div>
+    <div class="actions"><button class="btn pri" id="goAuth">Se connecter</button></div>
     <p class="note"><button class="lien" type="button" id="oubli">Mot de passe oublié ?</button></p>
   </form>
-</dialog>
+</section>
+
+<header hidden>
+  <div><h1>Taux de suspicion</h1><p class="sous">Tableau comparatif des élèves, modifiable par les admins</p></div>
+  <div class="haut">
+    <div class="pill" id="stat">Plus suspect : –</div>
+    <div class="pill" id="etat"><i></i><span>Connexion…</span></div>
+    <div class="pill" id="role">Lecteur</div>
+    <button class="btn pri" id="bPanel" hidden>Panneau admin</button>
+    <button class="btn" id="compte">Compte</button>
+    <button id="mute" aria-label="Couper le son" title="Son">🔊</button>
+  </div>
+</header>
+<main class="wrap" hidden>
+  <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="g"></div></section>
+  <section class="panel"><div class="tete"><span>N°</span><span>Élève</span><span>Taux de suspicion</span></div><div id="d"></div></section>
+</main>
 
 <dialog id="dlgCompte">
   <h2 id="cNom">Compte</h2>
   <p class="note" id="cRole"></p>
   <label class="ch">Votre identifiant (UID)<input id="uid" readonly></label>
-  <p class="note" id="hintUid" hidden>Owner : copiez cet identifiant dans la constante <b>OWNER_UID</b> du code et dans les règles Firebase.</p>
   <div class="actions">
-    <button class="btn pri" id="bAdmins" hidden>Gérer les admins</button>
     <button class="btn" id="bDeco">Se déconnecter</button>
     <button class="btn" data-close>Fermer</button>
   </div>
 </dialog>
 
 <dialog id="dlgAdmins">
-  <h2>Gérer les admins</h2>
+  <h2>Panneau admin</h2>
+  <p class="note" id="nbComptes"></p>
   <div id="listeAdmins"></div>
   <div class="actions"><button class="btn" data-close>Fermer</button></div>
 </dialog>
@@ -142,14 +152,18 @@ const FIREBASE_CONFIG = {
   projectId: "enquete-83090",
   appId: "1:160141092184:web:257ac4ce56d487afc0b12d"
 };
-/* Identifiant (UID) du owner : créez d'abord votre compte, copiez l'UID affiché dans « Compte », collez-le ici ET dans les règles Firebase */
-const OWNER_UID = "COLLER_UID_ICI";
+/* E-mail du owner : il crée son compte avec cette adresse (et le mot de passe de son choix, jamais écrit dans le code).
+   Le rôle owner n'est actif qu'une fois l'e-mail vérifié. Mettre la même adresse dans les règles Firebase. */
+const OWNER_EMAIL = "yanis.mag4801@gmail.com";
+const emailOwner = u => (u.email || "").toLowerCase() === OWNER_EMAIL;
+const estOwner = u => !!u && emailOwner(u) && u.emailVerified;
 
 const NOMS = ["Clara","Juliette","Esma","Henry","Isaac","Joshua","Mylan","Leo","Martin.H","Martin.F","Oscar","Chems",
   "Simon","Thomas","Olivia","Julia","Charlie","Elyne","Lucie","Bruno","Leandro","Julie","Wissal"];
 const SEUIL = 80;
 const $ = id => document.getElementById(id);
 const champs = {}, minuteurs = {};
+const appEls = [document.querySelector("header"), document.querySelector("main")];
 
 /* ---------- Effets sonores ---------- */
 let ctx, muet = localStorage.getItem("sfx-muet") === "1";
@@ -228,7 +242,7 @@ function majStat() {
 document.querySelectorAll("input[data-i]").forEach(inp => {
   (champs[inp.dataset.i] ||= {})[inp.dataset.c] = inp;
   inp.addEventListener("focus", () => {
-    if (inp.readOnly) { sfx.refus(); toast(user ? "Modification réservée aux admins" : "Connectez-vous avec un compte admin pour modifier"); }
+    if (inp.readOnly) { sfx.refus(); toast("Modification réservée aux admins"); }
     else sfx.focus();
   });
   inp.addEventListener("input", () => {
@@ -278,9 +292,15 @@ function sauver(inp) {
     .then(() => { sfx.ok(); toast("Enregistré ✓"); })
     .catch(() => { sfx.refus(); toast("Modification refusée"); inp.blur(); afficher(dernier); });
 }
-db.ref("eleves").on("value", snap => { dernier = snap.val(); afficher(dernier); },
-  err => majEtat(false, "Lecture impossible : " + err.message));
-db.ref(".info/connected").on("value", s => majEtat(!!s.val(), s.val() ? "Synchronisé en direct" : "Reconnexion…"));
+function presence() {
+  if (!user) return;
+  const p = db.ref("users/" + user.uid + "/enLigne");
+  p.onDisconnect().set(false).then(() => p.set(true)).catch(() => {});
+}
+db.ref(".info/connected").on("value", s => {
+  majEtat(!!s.val(), s.val() ? "Synchronisé en direct" : "Reconnexion…");
+  if (s.val()) presence();
+});
 
 /* ---------- Comptes et rôles ---------- */
 const ERR = {
@@ -300,28 +320,39 @@ function majDroits() {
   document.querySelectorAll("input[data-i]").forEach(i => i.readOnly = !peut);
   document.body.classList.toggle("lecture", !peut);
   const r = $("role");
-  r.textContent = owner ? "Owner" : admin ? "Admin" : user ? "Lecteur" : "Lecture seule";
+  r.textContent = owner ? "Owner" : admin ? "Admin" : "Lecteur";
   r.classList.toggle("fort", peut);
-  $("compte").textContent = user ? (user.displayName || "Compte") : "Connexion";
-  $("cNom").textContent = user ? (user.displayName || "Compte") : "Compte";
+  const nom = user ? (user.displayName || "Compte") : "Compte";
+  $("compte").textContent = nom;
+  $("cNom").textContent = nom;
+  const attente = !owner && !!user && emailOwner(user);
   $("cRole").textContent = owner ? "Rôle : owner. Vous pouvez tout modifier et nommer des admins."
+    : attente ? "Owner en attente : vérifiez votre e-mail avec le lien reçu, puis déconnectez-vous et reconnectez-vous."
     : admin ? "Rôle : admin. Vous pouvez modifier les noms et les taux."
     : "Rôle : lecteur. Vous pouvez consulter le tableau.";
   $("uid").value = user ? user.uid : "";
-  $("hintUid").hidden = OWNER_UID !== "COLLER_UID_ICI";
-  $("bAdmins").hidden = !owner;
+  $("bPanel").hidden = !owner;
 }
 
 let offAdmin = null, usersData = {}, adminsData = {};
 auth.onAuthStateChanged(u => {
-  user = u; owner = !!u && u.uid === OWNER_UID; admin = false;
+  user = u; owner = estOwner(u); admin = false;
   if (offAdmin) { offAdmin(); offAdmin = null; }
-  db.ref("users").off(); db.ref("admins").off();
+  db.ref("users").off(); db.ref("admins").off(); db.ref("eleves").off();
+  /* Connecté : tableau. Pas de session sur cet appareil : page de connexion. */
+  $("porte").hidden = !!u;
+  appEls.forEach(e => e.hidden = !u);
   if (u) {
+    db.ref("eleves").on("value", snap => { dernier = snap.val(); afficher(dernier); },
+      err => majEtat(false, "Lecture impossible : " + err.message));
+    const maj = { email: u.email, derniere: firebase.database.ServerValue.TIMESTAMP };
+    if (u.displayName) maj.pseudo = u.displayName;
+    db.ref("users/" + u.uid).update(maj).catch(() => {});
+    presence();
     const r = db.ref("admins/" + u.uid);
     const f = r.on("value", s => { admin = s.val() === true; majDroits(); }, () => {});
     offAdmin = () => r.off("value", f);
-  }
+  } else { premier = true; dernier = null; }
   if (owner) {
     db.ref("users").on("value", s => { usersData = s.val() || {}; rendreAdmins(); }, () => {});
     db.ref("admins").on("value", s => { adminsData = s.val() || {}; rendreAdmins(); }, () => {});
@@ -349,7 +380,7 @@ function rendreAdmins() {
   });
 }
 
-/* ---------- Fenêtres connexion / compte ---------- */
+/* ---------- Connexion / inscription ---------- */
 let mode = "connexion";
 function setMode(m) {
   mode = m;
@@ -361,11 +392,12 @@ function setMode(m) {
   $("goAuth").textContent = m === "inscription" ? "Créer mon compte" : "Se connecter";
   $("erreur").textContent = "";
 }
+setMode("connexion");
 $("tabCo").onclick = () => setMode("connexion");
 $("tabIn").onclick = () => setMode("inscription");
-$("compte").onclick = () => { sfx.on(); if (user) $("dlgCompte").showModal(); else { setMode("connexion"); $("dlgAuth").showModal(); } };
+$("compte").onclick = () => { sfx.on(); $("dlgCompte").showModal(); };
 $("bAdmins").onclick = () => { $("dlgCompte").close(); $("dlgAdmins").showModal(); };
-$("bDeco").onclick = () => { auth.signOut(); $("dlgCompte").close(); toast("Déconnecté"); };
+$("bDeco").onclick = () => { $("dlgCompte").close(); auth.signOut(); toast("Déconnecté"); };
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
 document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
 
@@ -374,6 +406,8 @@ $("fAuth").onsubmit = async e => {
   const email = $("email").value.trim(), mdp = $("mdp").value, pseudo = $("pseudo").value.trim();
   $("erreur").textContent = "";
   try {
+    /* « Cookie » : session gardée sur l'appareil (LOCAL) ou seulement jusqu'à la fermeture de l'onglet (SESSION) */
+    await auth.setPersistence($("rester").checked ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
     if (mode === "inscription") {
       const c = await auth.createUserWithEmailAndPassword(email, mdp);
       await c.user.updateProfile({ displayName: pseudo });
@@ -384,7 +418,7 @@ $("fAuth").onsubmit = async e => {
       if (!(await p.once("value")).exists()) p.set(c.user.displayName || email.split("@")[0]).catch(() => {});
     }
     majDroits();
-    $("dlgAuth").close(); $("fAuth").reset(); sfx.ok();
+    $("fAuth").reset(); sfx.ok();
     toast(mode === "inscription" ? "Compte créé ✓" : "Connecté ✓");
   } catch (err) {
     sfx.refus();
